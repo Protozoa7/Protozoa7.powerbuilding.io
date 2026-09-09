@@ -1,0 +1,9 @@
+{
+  "name": "Evan Powerbuilding",
+  "short_name": "Powerbuilding",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07090d",
+  "theme_color": "#0a0d12",
+  "description": "Four-day autoregulated powerbuilding tracker with substitutions, offline autosave, history, and a persistent rest timer."
+}
