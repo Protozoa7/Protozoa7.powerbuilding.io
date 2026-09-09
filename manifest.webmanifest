@@ -1,0 +1,9 @@
+{
+  "name": "Evan Powerbuilding Tracker",
+  "short_name": "Powerbuilding",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "description": "Four-day autoregulated powerbuilding tracker with exercise substitutions and local workout history."
+}
