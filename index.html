@@ -3,24 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0a0d12" />
-  <title>Evan Powerbuilding</title>
+  <meta name="theme-color" content="#090b0f" />
+  <meta name="description" content="Evan's bodybuilding-first training tracker with squat and deadlift anchors, automatic warm-ups, plate math, rest timers, substitutions, and progression." />
+  <title>Evan // Hypertrophy</title>
   <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="app-header">
-    <div class="brand-block">
+    <button class="brand" data-nav="train" aria-label="Go to training">
       <span class="brand-kicker">EVAN</span>
-      <span class="brand-name">POWERBUILDING</span>
-    </div>
-    <div id="connectionPill" class="connection-pill" aria-live="polite">Saved locally</div>
+      <span class="brand-name">HYPERTROPHY</span>
+    </button>
+    <div id="saveStatus" class="save-status">Saved locally</div>
   </header>
 
   <main class="app-main">
-    <section id="workoutPanel" class="app-panel active" data-panel="workout">
+    <section id="trainPanel" class="panel" data-panel="train">
       <div id="setupView"></div>
-      <div id="activeWorkoutView" hidden>
+      <div id="activeView" hidden>
         <section class="session-strip">
           <div>
             <div class="eyebrow">CURRENT SESSION</div>
@@ -31,37 +33,32 @@
 
         <section class="progress-card">
           <div class="progress-copy">
-            <span id="exerciseProgressText">Exercise 1 of 4</span>
-            <span id="setProgressText">0 sets done</span>
+            <span id="exerciseProgress">Exercise 1 of 4</span>
+            <span id="setProgress">0 sets done</span>
           </div>
-          <div class="progress-track"><div id="workoutProgressBar" class="progress-fill"></div></div>
+          <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
           <div id="exerciseStepper" class="exercise-stepper"></div>
         </section>
 
-        <section id="activeExerciseCard" class="active-exercise-card"></section>
+        <section id="activeExercise" class="active-exercise-card"></section>
 
-        <section class="active-meta-card">
+        <section class="meta-card">
           <div class="field">
-            <label for="activeSessionDate">Date</label>
-            <input id="activeSessionDate" type="date" />
+            <label for="sessionDate">Date</label>
+            <input id="sessionDate" type="date" />
           </div>
           <div class="field">
-            <label for="activeBodyweight">Bodyweight</label>
-            <input id="activeBodyweight" type="number" inputmode="decimal" placeholder="lb" />
+            <label for="bodyweight">Bodyweight</label>
+            <div class="input-suffix"><input id="bodyweight" type="number" inputmode="decimal" placeholder="optional" /><span id="bodyweightUnit">lb</span></div>
           </div>
         </section>
 
-        <section class="session-notes-card">
-          <div class="section-heading-row">
-            <div>
-              <div class="eyebrow">SESSION NOTES</div>
-              <h3>Anything worth remembering?</h3>
-            </div>
-          </div>
-          <textarea id="sessionNotes" rows="4" placeholder="Pain, technique, energy, substitutions, wins..."></textarea>
+        <section class="notes-card">
+          <div class="eyebrow">SESSION NOTES</div>
+          <textarea id="sessionNotes" rows="3" placeholder="Pain, equipment changes, anything worth remembering..."></textarea>
         </section>
 
-        <div class="workout-actions">
+        <div class="exercise-nav">
           <button id="prevExerciseBtn" class="secondary-btn">← Previous</button>
           <button id="nextExerciseBtn" class="primary-btn">Next exercise →</button>
         </div>
@@ -69,98 +66,106 @@
       </div>
     </section>
 
-    <section id="historyPanel" class="app-panel" data-panel="history" hidden>
+    <section id="historyPanel" class="panel" data-panel="history" hidden>
       <div class="page-heading">
-        <div>
-          <div class="eyebrow">TRAINING LOG</div>
-          <h2>History</h2>
-        </div>
+        <div class="eyebrow">TRAINING LOG</div>
+        <h1>History</h1>
+        <p>Old powerbuilding sessions stay here too. The new program starts a fresh active-session state without deleting your previous logs.</p>
       </div>
-      <div id="historyStats" class="history-stats"></div>
+      <div id="historyStats" class="stats-grid"></div>
       <div id="historyList" class="history-list"></div>
     </section>
 
-    <section id="settingsPanel" class="app-panel" data-panel="settings" hidden>
+    <section id="progressPanel" class="panel" data-panel="progress" hidden>
       <div class="page-heading">
-        <div>
-          <div class="eyebrow">APP</div>
-          <h2>Settings</h2>
-        </div>
+        <div class="eyebrow">AESTHETICS FIRST</div>
+        <h1>Progress</h1>
+        <p>Best productive loads, rep PRs, and recent volume. Strength is still visible without making it the entire program.</p>
+      </div>
+      <div id="progressStats" class="stats-grid"></div>
+      <div id="progressList" class="progress-list"></div>
+    </section>
+
+    <section id="settingsPanel" class="panel" data-panel="settings" hidden>
+      <div class="page-heading">
+        <div class="eyebrow">MAKE THE APP MATCH THE GYM</div>
+        <h1>Settings</h1>
       </div>
 
       <section class="settings-card">
-        <div class="setting-row">
-          <div>
-            <strong>Auto-start rest timer</strong>
-            <span>Starts when you mark a working set complete.</span>
-          </div>
-          <label class="switch"><input id="autoTimerToggle" type="checkbox" /><span></span></label>
-        </div>
-        <div class="setting-row">
-          <div>
-            <strong>Timer vibration</strong>
-            <span>Vibrate when rest time expires, when supported.</span>
-          </div>
-          <label class="switch"><input id="vibrationToggle" type="checkbox" /><span></span></label>
+        <h2>Training</h2>
+        <label class="toggle-row"><span><strong>Auto-start rest timer</strong><small>Starts when a working set is checked complete.</small></span><input id="autoTimerToggle" type="checkbox" /></label>
+        <label class="toggle-row"><span><strong>Vibration / timer alert</strong><small>Uses your device when supported.</small></span><input id="vibrationToggle" type="checkbox" /></label>
+        <label class="toggle-row"><span><strong>Keep screen awake</strong><small>Requests wake lock while a workout is active.</small></span><input id="wakeLockToggle" type="checkbox" /></label>
+      </section>
+
+      <section class="settings-card">
+        <h2>Units & progression</h2>
+        <div class="settings-grid">
+          <div class="field"><label for="preferredUnit">Weight entry unit</label><select id="preferredUnit"><option value="lb">Pounds (lb)</option><option value="kg">Kilograms (kg)</option></select></div>
+          <div class="field"><label for="defaultIncrement">Default increment</label><input id="defaultIncrement" type="number" min="0.5" step="0.5" /></div>
+          <div class="field"><label for="deadliftIncrement">Deadlift increment</label><input id="deadliftIncrement" type="number" min="0.5" step="0.5" /></div>
+          <div class="field"><label for="machineIncrement">Machine / leg increment</label><input id="machineIncrement" type="number" min="0.5" step="0.5" /></div>
         </div>
       </section>
 
       <section class="settings-card">
-        <div class="eyebrow">DATA & OFFLINE</div>
-        <h3>Your training stays on this device</h3>
-        <p id="storageStatus" class="muted-copy">Current sessions autosave locally. The app works offline after it has loaded successfully once.</p>
-        <div class="settings-actions">
-          <button id="exportBtn" class="secondary-btn">Export backup</button>
-          <label class="file-btn secondary-btn">Import backup<input id="importInput" type="file" accept="application/json" hidden /></label>
-          <button id="installBtn" class="secondary-btn" hidden>Install app</button>
+        <h2>Barbell calculator</h2>
+        <p class="settings-help">The app shows both systems on barbell work. Edit these if your gym uses a different bar or plate inventory.</p>
+        <div class="settings-grid">
+          <div class="field"><label for="lbBarWeight">LB bar weight</label><input id="lbBarWeight" type="number" step="0.5" /></div>
+          <div class="field"><label for="kgBarWeight">KG bar weight</label><input id="kgBarWeight" type="number" step="0.5" /></div>
+          <div class="field full"><label for="lbPlates">LB plates available (per side)</label><input id="lbPlates" type="text" placeholder="45,35,25,10,5,2.5" /></div>
+          <div class="field full"><label for="kgPlates">KG plates available (per side)</label><input id="kgPlates" type="text" placeholder="25,20,15,10,5,2.5,1.25" /></div>
         </div>
+        <button id="saveSettingsBtn" class="primary-btn">Save settings</button>
       </section>
 
-      <section class="settings-card danger-zone">
-        <div class="eyebrow">RESET</div>
-        <h3>Training data</h3>
-        <div class="settings-actions">
-          <button id="resetCurrentDayBtn" class="danger-btn">Reset current day</button>
-          <button id="clearHistoryBtn" class="danger-btn">Clear saved history</button>
+      <section class="settings-card">
+        <h2>Data</h2>
+        <p id="storageStatus" class="settings-help"></p>
+        <div class="button-stack">
+          <button id="installBtn" class="secondary-btn" hidden>Install app</button>
+          <button id="exportBtn" class="secondary-btn">Export backup</button>
+          <label class="secondary-btn file-label">Import backup<input id="importInput" type="file" accept="application/json" hidden /></label>
+          <button id="clearHistoryBtn" class="danger-btn">Clear workout history</button>
         </div>
       </section>
     </section>
   </main>
 
-  <aside id="restTimerDock" class="timer-dock" hidden aria-live="polite">
-    <div class="timer-main">
-      <div>
-        <div id="timerLabel" class="timer-label">REST TIMER</div>
-        <div id="timerDisplay" class="timer-display">01:30</div>
-      </div>
-      <div id="timerStateText" class="timer-state">Ready</div>
+  <aside id="restTimer" class="timer-dock" hidden>
+    <div>
+      <div id="timerLabel" class="timer-label">Rest</div>
+      <div id="timerState" class="timer-state">Ready</div>
     </div>
-    <div class="timer-controls">
-      <button id="timerMinusBtn" class="timer-small">−30</button>
-      <button id="timerStartPauseBtn" class="timer-primary">Start</button>
-      <button id="timerPlusBtn" class="timer-small">+30</button>
-      <button id="timerResetBtn" class="timer-small">Reset</button>
+    <div id="timerDisplay" class="timer-display">01:30</div>
+    <div class="timer-actions">
+      <button id="timerMinus">−15</button>
+      <button id="timerToggle">Start</button>
+      <button id="timerPlus">+15</button>
+      <button id="timerStop">Stop</button>
     </div>
   </aside>
 
-  <nav class="bottom-nav" aria-label="App navigation">
-    <button class="nav-btn active" data-target="workout"><span class="nav-icon">◆</span><span>Workout</span></button>
-    <button class="nav-btn" data-target="history"><span class="nav-icon">▤</span><span>History</span></button>
-    <button class="nav-btn" data-target="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+  <nav class="bottom-nav" aria-label="Primary navigation">
+    <button class="nav-btn active" data-target="train"><span>◆</span>Train</button>
+    <button class="nav-btn" data-target="history"><span>≡</span>History</button>
+    <button class="nav-btn" data-target="progress"><span>↗</span>Progress</button>
+    <button class="nav-btn" data-target="settings"><span>⚙</span>Settings</button>
   </nav>
 
   <div id="sessionMenu" class="modal-backdrop" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sessionMenuTitle">
-      <div class="sheet-handle"></div>
-      <h3 id="sessionMenuTitle">Session options</h3>
-      <button id="changeRecoveryBtn" class="sheet-btn">Change recovery level</button>
-      <button id="discardSessionBtn" class="sheet-btn danger-text">Discard current session</button>
-      <button id="closeSessionMenuBtn" class="sheet-btn">Cancel</button>
+    <div class="modal-card">
+      <div class="modal-handle"></div>
+      <h2>Session options</h2>
+      <button id="jumpSetupBtn" class="secondary-btn">Return to workout overview</button>
+      <button id="discardSessionBtn" class="danger-btn">Discard this session</button>
+      <button id="closeSessionMenuBtn" class="ghost-btn">Close</button>
     </div>
   </div>
 
-  <div id="toast" class="toast" hidden></div>
-
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
 </body>
 </html>

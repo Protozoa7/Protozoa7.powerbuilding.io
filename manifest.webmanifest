@@ -1,9 +1,13 @@
 {
-  "name": "Evan Powerbuilding",
-  "short_name": "Powerbuilding",
+  "name": "Evan Hypertrophy",
+  "short_name": "Hypertrophy",
+  "description": "Bodybuilding-first workout tracker with squat and deadlift anchors, warm-up ladders, plate math, progression and offline autosave.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#07090d",
-  "theme_color": "#0a0d12",
-  "description": "Four-day autoregulated powerbuilding tracker with substitutions, offline autosave, history, and a persistent rest timer."
+  "background_color": "#080a0d",
+  "theme_color": "#090b0f",
+  "icons": [
+    {"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
 }
