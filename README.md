@@ -1,4 +1,4 @@
-# Evan Hypertrophy v4
+# Evan Hypertrophy v4.1
 
 Standalone PWA replacement for the current `Protozoa7.powerbuilding.io` GitHub Pages workout tracker.
 
@@ -19,7 +19,7 @@ Working sets use objective rep thresholds instead of RIR:
 - No next-set suggestion after the final programmed set
 - Squat/deadlift use technical failure; other working sets use clean rep failure
 
-## New v4 features
+## New v4.1 features
 
 - Automatic warm-up ladder for squat/deadlift barbell work
 - Warm-up percentages: bar ×10, ~40% ×8, ~55% ×5, ~70% ×3, ~85% ×1
@@ -61,4 +61,17 @@ Delete the old website files from the repository and copy the contents of this f
 
 Commit and push to `main`. GitHub Pages should rebuild automatically.
 
-The service worker uses cache name `evan-hypertrophy-v4.0.0`, so the old cached site should be replaced after the new service worker activates. If a phone still shows the old PWA, open the website once in Chrome/Safari and refresh, then fully close and reopen the installed app.
+The service worker uses cache name `evan-hypertrophy-v4.1.0.0`, so the old cached site should be replaced after the new service worker activates. If a phone still shows the old PWA, open the website once in Chrome/Safari and refresh, then fully close and reopen the installed app.
+
+
+## v4.1 workout-screen changes
+
+- Wider desktop training layout (mobile stays single-column)
+- Squat/deadlift planned working weight moved to the top of the exercise card
+- Warm-up ladder now reads as a numbered load sequence with exact plate changes
+- Working-set barbell loads show plate setup beneath the set
+- Readable `MIN X / ADD @ Y` prescription badge
+- Last-time data, substitutions, and failure rule moved into a collapsible detail panel
+- Completed exercises show a checkmark in the top stepper
+- Smaller sticky rest-timer dock
+- Planned-weight entry no longer re-renders on every keystroke

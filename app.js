@@ -52,7 +52,7 @@ const HISTORY_KEY = OLD_HISTORY_KEY; // keep old history visible
 const STATE_KEY = "evanBodybuildingStateV4"; // new program = clean active-session state
 const TIMER_KEY = "evanPowerbuildingTimerV1";
 const SETTINGS_KEY = "evanPowerbuildingSettingsV1";
-const VERSION = 4;
+const VERSION = "4.1";
 
 const DEFAULT_SETTINGS = {
   autoStartTimer: true,
@@ -293,17 +293,18 @@ function renderActive(){
 function renderWorkoutProgress(){
   const {dayState,day}=currentContext(); const done=completedCount(dayState), total=totalSets(); const idx=dayState.currentExercise;
   exerciseProgress.textContent=`Exercise ${idx+1} of ${day.exercises.length}`; setProgress.textContent=`${done} of ${total} sets done`; progressFill.style.width=`${total?done/total*100:0}%`;
-  exerciseStepper.innerHTML=day.exercises.map((_,i)=>`<button class="step-dot ${i===idx?"active":""} ${exerciseDone(dayState,i)?"done":""}" data-step="${i}">${i+1}</button>`).join("");
+  exerciseStepper.innerHTML=day.exercises.map((_,i)=>{ const finished=exerciseDone(dayState,i); return `<button class="step-dot ${i===idx?"active":""} ${finished?"done":""}" data-step="${i}" aria-label="Exercise ${i+1}${finished?", complete":""}">${finished?"✓":i+1}</button>`; }).join("");
   exerciseStepper.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>goExercise(Number(b.dataset.step))));
 }
 function renderWarmups(ex,idx,name,ds){
   if(!isWarmupSelection(ex,name)) return "";
   const suggested=suggestedStart(ex,name); const target=Number(ds.planned?.[idx] || ds.inputs?.[idx]?.[0]?.weight || suggested?.weight || 0);
+  if(!(target>0)) return `<section class="warmup-card warmup-awaiting"><div class="eyebrow">AUTO WARM-UP</div><h3>Enter the working weight above.</h3><div class="warmup-empty">The ramp sets and exact LB/KG plate changes will build automatically.</div></section>`;
   const plan=warmupPlan(target,ex);
   let prev=null;
-  const rows=plan.map(w=>{ const plate=plateHtml(w.load,unit(),prev); const out=`<div class="warmup-row"><div><div class="warmup-load">${fmtWeight(w.load)}</div><div class="warmup-reps">× ${w.reps}</div></div><div>${plate}</div></div>`; prev=w.load; return out; }).join("");
-  const workPlates=target>0?`<div class="barbell-box"><div class="eyebrow">WORKING WEIGHT BAR SETUP</div>${plateHtml(target,unit(),prev)}</div>`:"";
-  return `<section class="warmup-card"><div class="warmup-header"><div><div class="eyebrow">AUTO WARM-UP</div><h3>No math. Just load the bar.</h3></div><div class="work-target"><label>Planned work weight</label><div class="input-suffix"><input id="plannedWeight" type="number" inputmode="decimal" step="0.5" value="${target||""}" placeholder="weight"><span>${unit()}</span></div></div></div>${target>0?`<div class="warmup-list">${rows}</div>${workPlates}`:`<div class="warmup-empty">Enter the planned working weight. The warm-up ladder and both LB/KG plate stacks will appear automatically.</div>`}</section>`;
+  const rows=plan.map((w,i)=>{ const plate=plateHtml(w.load,unit(),prev); const out=`<div class="warmup-row"><div class="warmup-step"><span>${i+1}</span></div><div><div class="warmup-load">${fmtWeight(w.load)} <small>× ${w.reps}</small></div><div class="warmup-purpose">${w.label}</div></div><div class="warmup-plates">${plate}</div></div>`; prev=w.load; return out; }).join("");
+  const workPlates=`<div class="barbell-box work-bar-setup"><div><div class="eyebrow">WORK SET 1 BAR SETUP</div><strong class="work-bar-load">${fmtWeight(target)}</strong></div><div>${plateHtml(target,unit(),prev)}</div></div>`;
+  return `<section class="warmup-card"><div class="warmup-title-row"><div><div class="eyebrow">AUTO WARM-UP</div><h3>No math. Just load the bar.</h3></div><div class="warmup-count">${plan.length} ramp sets</div></div><div class="warmup-list">${rows}</div>${workPlates}</section>`;
 }
 function renderRecommendation(ex,idx,ds,name){
   const rec=nextRecommendation(ex,ds.inputs?.[idx]||[],ds.completed?.[idx]||[]);
@@ -316,27 +317,42 @@ function renderRecommendation(ex,idx,ds,name){
 function renderActiveExercise(){
   const {dayState,day}=currentContext(); const idx=dayState.currentExercise; const ex=day.exercises[idx];
   dayState.inputs[idx] ||= Array.from({length:ex.sets},()=>({weight:"",reps:""})); dayState.completed[idx] ||= Array(ex.sets).fill(false);
-  const name=selectedName(ex,idx,dayState); const suggested=suggestedStart(ex,name); const planned=Number(dayState.planned?.[idx]||0);
+  const name=selectedName(ex,idx,dayState); const suggested=suggestedStart(ex,name);
+  const isWarmup=isWarmupSelection(ex,name);
+  const target=Number(dayState.planned?.[idx] || dayState.inputs?.[idx]?.[0]?.weight || suggested?.weight || 0);
   const setRows=Array.from({length:ex.sets},(_,i)=>{
-    const s=dayState.inputs[idx][i]||{}; const done=Boolean(dayState.completed[idx][i]);
-    return `<div class="set-row ${done?"done":""}"><div class="set-label">SET ${i+1}</div><div class="set-field"><input class="set-input" type="number" inputmode="decimal" step="0.5" data-set="${i}" data-kind="weight" value="${esc(s.weight||"")}" placeholder="weight"><span>${unit()}</span></div><div class="set-field"><input class="set-input" type="number" inputmode="numeric" data-set="${i}" data-kind="reps" value="${esc(s.reps||"")}" placeholder="reps"><span>reps</span></div><button class="complete-btn" data-complete="${i}" aria-label="Complete set ${i+1}">${done?"✓":"○"}</button></div>`;
+    const set=dayState.inputs[idx][i]||{}; const done=Boolean(dayState.completed[idx][i]);
+    const barSetup=isBarbellSelection(ex,name) && Number(set.weight)>0 ? `<div class="set-plate-hint">${plateHtml(Number(set.weight),unit(),i>0&&Number(dayState.inputs[idx][i-1]?.weight)>0?Number(dayState.inputs[idx][i-1].weight):null)}</div>` : "";
+    return `<div class="set-wrap"><div class="set-row ${done?"done":""}"><div class="set-label">SET ${i+1}</div><div class="set-field"><input class="set-input" type="number" inputmode="decimal" step="0.5" data-set="${i}" data-kind="weight" value="${esc(set.weight||"")}" placeholder="weight"><span>${unit()}</span></div><div class="set-field"><input class="set-input" type="number" inputmode="numeric" data-set="${i}" data-kind="reps" value="${esc(set.reps||"")}" placeholder="reps"><span>reps</span></div><button class="complete-btn" data-complete="${i}" aria-label="Complete set ${i+1}">${done?"✓":"○"}</button></div>${barSetup}</div>`;
   }).join("");
-  activeExercise.innerHTML=`<div class="exercise-title-row"><div><div class="eyebrow">${esc(ex.slot)}</div><h1>${esc(name)}</h1><div class="exercise-subline">${ex.sets} working sets · ${ex.rest}s rest${ex.unilateral?" · reps per leg":""}</div></div><div class="rx-badge">${ex.min}+ → ${ex.addAt}</div></div>
-    <div class="failure-rule">${ex.technical?"Stop at technical failure: end the set when the next rep would require a meaningful breakdown in position or technique.":"Working sets are rep-to-failure: keep going until another clean rep is not there."}</div>
-    <div class="threshold-grid"><div class="threshold"><strong>${ex.min}</strong><span>minimum reps</span></div><div class="threshold"><strong>${ex.addAt}</strong><span>add weight at</span></div><div class="threshold"><strong>${fmtWeight(exIncrement(ex))}</strong><span>load change</span></div></div>
-    <div class="last-time"><strong>LAST TIME</strong><br>${esc(lastTimeText(ex,name))}${suggested?`<br><strong>Suggested start:</strong> ${fmtWeight(suggested.weight)} · ${esc(suggested.reason)}`:""}</div>
-    <div class="swap-row"><label>Exercise / substitution</label><select id="exerciseSwap">${[ex.primary,...ex.subs].map(n=>`<option ${n===name?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
-    ${renderWarmups(ex,idx,name,dayState)}
-    <div class="set-list">${setRows}</div>
-    <div id="nextSetBox">${renderRecommendation(ex,idx,dayState,name)}</div>`;
 
-  const swap=$("exerciseSwap"); swap.addEventListener("change",()=>{
+  const targetControl=isWarmup ? `<section class="working-target-card"><div><div class="eyebrow">WHAT ARE WE WORKING UP TO TODAY?</div><h2>Planned working weight</h2>${suggested?`<p>Suggested from last time: <strong>${fmtWeight(suggested.weight)}</strong> · ${esc(suggested.reason)}</p>`:`<p>Set today's target and the warm-up ladder will build itself.</p>`}</div><div class="working-target-input"><div class="input-suffix"><input id="plannedWeight" type="number" inputmode="decimal" step="0.5" value="${target||""}" placeholder="315"><span>${unit()}</span></div><button id="buildWarmupBtn" class="mini-btn">Build warm-up</button></div></section>` : "";
+
+  const details=`<details class="exercise-details"><summary>Last time, substitutions & training rule</summary><div class="exercise-details-body"><div class="last-time compact"><strong>LAST TIME</strong><br>${esc(lastTimeText(ex,name))}${suggested?`<br><strong>Suggested start:</strong> ${fmtWeight(suggested.weight)} · ${esc(suggested.reason)}`:""}</div><div class="swap-row"><label>Exercise / substitution</label><select id="exerciseSwap">${[ex.primary,...ex.subs].map(n=>`<option ${n===name?"selected":""}>${esc(n)}</option>`).join("")}</select></div><div class="failure-rule compact-rule">${ex.technical?"Technical failure only: stop when the next rep would require meaningful breakdown in position or technique.":"Working sets go to clean rep failure: stop when another clean rep is not there."}</div></div></details>`;
+
+  activeExercise.innerHTML=`<div class="exercise-title-row"><div><div class="eyebrow">${esc(ex.slot)}</div><h1>${esc(name)}</h1><div class="exercise-subline">${ex.sets} working sets · ${ex.rest}s rest${ex.unilateral?" · reps per leg":""}</div></div><div class="rx-badge"><span>MIN ${ex.min}</span><span>ADD @ ${ex.addAt}</span></div></div>
+    ${targetControl}
+    ${isWarmup?renderWarmups(ex,idx,name,dayState):""}
+    <div class="working-rule-strip"><span><strong>Rep floor:</strong> ${ex.min}</span><span><strong>Add weight:</strong> ${ex.addAt}+</span><span><strong>Change:</strong> ${fmtWeight(exIncrement(ex))}</span></div>
+    <div class="set-section-heading"><div><div class="eyebrow">WORKING SETS</div><h2>Beat the floor. Chase the threshold.</h2></div></div>
+    <div class="set-list">${setRows}</div>
+    <div id="nextSetBox">${renderRecommendation(ex,idx,dayState,name)}</div>
+    ${details}`;
+
+  const swap=$("exerciseSwap"); if(swap) swap.addEventListener("change",()=>{
     const {state,dayState:ds}=getDayState(); ds.selections[idx]=swap.value; ds.inputs[idx]=Array.from({length:ex.sets},()=>({weight:"",reps:""})); ds.completed[idx]=Array(ex.sets).fill(false); const sug=suggestedStart(ex,swap.value); ds.planned[idx]=sug?.weight||""; state[currentDay]=ds; saveState(state); renderActive();
   });
-  const planInput=$("plannedWeight"); if(planInput) planInput.addEventListener("input",()=>{ const {state,dayState:ds}=getDayState(); ds.planned[idx]=planInput.value; if(!ds.inputs[idx][0].weight) ds.inputs[idx][0].weight=planInput.value; state[currentDay]=ds; saveState(state); renderActiveExercise(); });
+  const planInput=$("plannedWeight");
+  if(planInput){
+    planInput.addEventListener("input",()=>{ const {state,dayState:ds}=getDayState(); ds.planned[idx]=planInput.value; state[currentDay]=ds; saveState(state); });
+    const commitPlanned=()=>{ const {state,dayState:ds}=getDayState(); ds.planned[idx]=planInput.value; if(!ds.inputs[idx][0].weight) ds.inputs[idx][0].weight=planInput.value; state[currentDay]=ds; saveState(state); renderActiveExercise(); };
+    planInput.addEventListener("change",commitPlanned);
+    $("buildWarmupBtn")?.addEventListener("click",commitPlanned);
+  }
   activeExercise.querySelectorAll(".set-input").forEach(inp=>inp.addEventListener("input",()=>{
     const {state,dayState:ds}=getDayState(); const si=Number(inp.dataset.set); ds.inputs[idx][si] ||= {}; ds.inputs[idx][si][inp.dataset.kind]=inp.value; if(si===0&&inp.dataset.kind==="weight"&&!ds.planned[idx]) ds.planned[idx]=inp.value; state[currentDay]=ds; saveState(state); refreshRecommendationOnly(ex,idx,ds,selectedName(ex,idx,ds));
   }));
+  activeExercise.querySelectorAll(".set-input[data-kind='weight']").forEach(inp=>inp.addEventListener("change",()=>renderActiveExercise()));
   activeExercise.querySelectorAll("[data-complete]").forEach(btn=>btn.addEventListener("click",()=>toggleSet(idx,Number(btn.dataset.complete))));
   activeExercise.querySelectorAll("[data-use-next]").forEach(btn=>btn.addEventListener("click",()=>useNextWeight(idx,Number(btn.dataset.useNext),btn.dataset.weight)));
 }
@@ -361,7 +377,7 @@ function renderHistory(){
   const h=loadHistory(); const last7=h.filter(x=>{const d=new Date(x.savedAt||x.date);return !Number.isNaN(d.getTime())&&Date.now()-d.getTime()<7*86400000;}).length; const sets=h.reduce((a,x)=>a+Number(x.completedSets||0),0);
   $("historyStats").innerHTML=`<div class="stat-card"><div class="stat-value">${h.length}</div><div class="stat-label">Sessions</div></div><div class="stat-card"><div class="stat-value">${last7}</div><div class="stat-label">Last 7 days</div></div><div class="stat-card"><div class="stat-value">${sets}</div><div class="stat-label">Sets logged</div></div>`;
   if(!h.length){ $("historyList").innerHTML='<div class="empty-state">No saved workouts yet.</div>'; return; }
-  $("historyList").innerHTML=h.slice(0,60).map(item=>{ const details=(item.exercises||[]).map(ex=>{ const ss=(ex.sets||[]).filter(s=>s.weight||s.reps).map(s=>`${s.weight||"—"}×${s.reps||"—"}${s.completed===false?"":" ✓"}`).join(" · "); return `${ex.exercise||ex.name||"Exercise"}${ss?` — ${ss}`:""}`; }).join("\n"); return `<details class="history-item"><summary class="history-summary"><div class="history-title"><span>${esc(item.dayName||item.dayKey||"Workout")}</span><span>${esc(item.date||"")}</span></div><div class="history-sub">${Number(item.completedSets||0)} sets${item.bodyweight?` · ${esc(item.bodyweight)} ${esc(item.unit||"lb")}`:""}${item.programVersion===VERSION?" · Bodybuilding v4":" · Legacy log"}</div></summary><div class="history-body">${esc(details)}${item.notes?`\n\nNotes: ${esc(item.notes)}`:""}</div></details>`; }).join("");
+  $("historyList").innerHTML=h.slice(0,60).map(item=>{ const details=(item.exercises||[]).map(ex=>{ const ss=(ex.sets||[]).filter(s=>s.weight||s.reps).map(s=>`${s.weight||"—"}×${s.reps||"—"}${s.completed===false?"":" ✓"}`).join(" · "); return `${ex.exercise||ex.name||"Exercise"}${ss?` — ${ss}`:""}`; }).join("\n"); return `<details class="history-item"><summary class="history-summary"><div class="history-title"><span>${esc(item.dayName||item.dayKey||"Workout")}</span><span>${esc(item.date||"")}</span></div><div class="history-sub">${Number(item.completedSets||0)} sets${item.bodyweight?` · ${esc(item.bodyweight)} ${esc(item.unit||"lb")}`:""}${item.programVersion===VERSION?" · Bodybuilding v4.1":" · Legacy log"}</div></summary><div class="history-body">${esc(details)}${item.notes?`\n\nNotes: ${esc(item.notes)}`:""}</div></details>`; }).join("");
 }
 function allExerciseNames(){ return [...new Set(Object.values(PROGRAM).flatMap(d=>d.exercises.map(e=>e.primary)))]; }
 function exerciseMetrics(name){
@@ -386,7 +402,7 @@ function saveTimer(t){ saveJSON(TIMER_KEY,t); }
 function secondsLeft(t=loadTimer()){ return t.running&&t.endAt?Math.max(0,Math.ceil((Number(t.endAt)-Date.now())/1000)):Math.max(0,Number(t.remaining)||0); }
 function timerClock(sec){ const m=Math.floor(sec/60),s=sec%60; return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; }
 function startTimer(sec,label="Rest"){ const t={running:true,remaining:sec,duration:sec,endAt:Date.now()+sec*1000,label,finished:false}; saveTimer(t); ensureTimerInterval(); renderTimer(); }
-function renderTimer(){ const t=loadTimer(),left=secondsLeft(t); timerDisplay.textContent=timerClock(left); timerLabel.textContent=t.label||"Rest"; timerState.textContent=t.running?"Counting down":t.finished?"Rest complete":"Paused / ready"; $("timerToggle").textContent=t.running?"Pause":"Start"; }
+function renderTimer(){ const t=loadTimer(),left=secondsLeft(t); timerDisplay.textContent=timerClock(left); timerLabel.textContent=t.label||"Rest"; timerState.textContent=t.running?"Counting down":t.finished?"Rest complete":"Paused / ready"; $("timerToggle").textContent=t.running?"Pause":"Start"; restTimer.classList.toggle("running",Boolean(t.running)); restTimer.classList.toggle("finished",Boolean(t.finished)); }
 function ensureTimerInterval(){ if(timerInterval) return; timerInterval=setInterval(()=>{ const t=loadTimer(); if(!t.running){renderTimer();return;} const left=secondsLeft(t); if(left<=0){ t.running=false;t.remaining=0;t.endAt=null;t.finished=true;saveTimer(t); if(getSettings().vibration&&navigator.vibrate) navigator.vibrate([180,80,180]); showToast("Rest complete."); } renderTimer(); },500); }
 function toggleTimer(){ const t=loadTimer(); if(t.running){ t.remaining=secondsLeft(t);t.running=false;t.endAt=null; } else { let left=secondsLeft(t)||t.duration||90;t.running=true;t.remaining=left;t.endAt=Date.now()+left*1000;t.finished=false; } saveTimer(t);ensureTimerInterval();renderTimer(); }
 function adjustTimer(delta){ const t=loadTimer(); const left=Math.max(0,secondsLeft(t)+delta); t.remaining=left; if(t.running)t.endAt=Date.now()+left*1000; saveTimer(t);renderTimer(); }
